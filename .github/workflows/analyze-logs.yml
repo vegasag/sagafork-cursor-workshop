@@ -28,6 +28,21 @@ jobs:
             --tenant "${{ secrets.AZURE_TENANT_ID }}"
           az account set --subscription "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
 
+      - name: Debug - test Application Insights query
+        run: |
+          echo "=== Testing exceptions query ==="
+          az monitor app-insights query \
+            --app ai-snkm-p \
+            --resource-group rg-snkm-shared-p \
+            --analytics-query "exceptions | where timestamp > ago(7d) | take 5" \
+            --output json
+          echo "=== Testing requests query ==="
+          az monitor app-insights query \
+            --app ai-snkm-p \
+            --resource-group rg-snkm-shared-p \
+            --analytics-query "requests | where timestamp > ago(7d) | take 5" \
+            --output json
+
       - name: Analyze logs with Claude and create issues
         uses: anthropics/claude-code-action@v1
         env:
