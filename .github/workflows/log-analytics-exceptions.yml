@@ -44,11 +44,19 @@ jobs:
       - name: Query exceptions (last 24h, workspace ID)
         run: |
           set -euo pipefail
-          az monitor log-analytics query \
-            --workspace "$LAW_WORKSPACE" \
-            --analytics-query "exceptions | where timestamp > ago(24h) | summarize Count=count(), LatestOccurrence=max(timestamp), EarliestOccurrence=min(timestamp) by problemId, type, outerMessage | top 2 by Count desc" \
-            --output json > "${{ github.workspace }}/log-analytics-exceptions.json"
-          echo "Rows file size: $(wc -c < ${{ github.workspace }}/log-analytics-exceptions.json) bytes"
+          OUT="${{ github.workspace }}/log-analytics-exceptions.json"
+          WS="$LAW_WORKSPACE"
+          # Workspace-based / App Insights: AppExceptions + TimeGenerated. Classic AI: exceptions + timestamp.
+          Q_APP='AppExceptions | where TimeGenerated > ago(24h) | summarize Count=count(), LatestOccurrence=max(TimeGenerated), EarliestOccurrence=min(TimeGenerated) by ProblemId, Type, OuterMessage | top 2 by Count desc'
+          Q_LEGACY='exceptions | where timestamp > ago(24h) | summarize Count=count(), LatestOccurrence=max(timestamp), EarliestOccurrence=min(timestamp) by problemId, type, outerMessage | top 2 by Count desc'
+          if az monitor log-analytics query --workspace "$WS" --analytics-query "$Q_APP" --output json > "$OUT" 2>/tmp/la_query_err.log; then
+            echo "Query used table: AppExceptions"
+          else
+            echo "AppExceptions failed (see log); trying exceptions table..."
+            cat /tmp/la_query_err.log
+            az monitor log-analytics query --workspace "$WS" --analytics-query "$Q_LEGACY" --output json > "$OUT"
+          fi
+          echo "Rows file size: $(wc -c < "$OUT") bytes"
 
       - name: Run Claude Code
         uses: anthropics/claude-code-action@v1
@@ -61,7 +69,7 @@ jobs:
 
             Read `log-analytics-exceptions.json` at the repository root. It is JSON from a Kusto query (typically an array of rows; empty array means no matching rows).
 
-            If there are no rows (empty array), open **one** GitHub issue titled `Log Analytics — no exceptions (24h)` and state that the `exceptions` query returned no rows for the configured workspace. Mention the query window is the last 24 hours.
+            If there are no rows (empty array), open **one** GitHub issue titled `Log Analytics — no exceptions (24h)` and state that the exception summary query returned no rows (AppExceptions or legacy exceptions table). Mention the query window is the last 24 hours.
 
             If there are rows:
             1. Summarize the most important exception patterns and likely user impact.
