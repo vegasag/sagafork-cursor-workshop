@@ -1,8 +1,8 @@
 # On push to main, schedule (weekdays), or manual: query Log Analytics, then Claude opens an issue with analysis.
 # Docs: https://code.claude.com/docs/en/github-actions#custom-automation-with-prompts
 #
-# GitHub Secrets (repository or environment):
-#   AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID
+# GitHub Secrets: AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID
+#   Built into `creds` JSON for azure/login@v2 (that action has no separate client-secret input).
 #   ANTHROPIC_FOUNDRY_API_KEY, ANTHROPIC_BASE_URL  (same as claude.yml / your Foundry or proxy setup)
 #
 # Optional repository Variables (defaults match workshop slide if unset):
@@ -38,13 +38,11 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Azure login (client secret)
+      - name: Azure login (service principal secret)
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          auth-type: SERVICE_PRINCIPAL
+          creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}'
 
       - name: Query AppExceptions (last 24h)
         run: |
