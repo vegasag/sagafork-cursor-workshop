@@ -1,4 +1,4 @@
-# Scheduled + manual: query Azure Log Analytics for recent exceptions, then Claude opens an issue with analysis.
+# On push to main, schedule (weekdays), or manual: query Log Analytics, then Claude opens an issue with analysis.
 # Docs: https://code.claude.com/docs/en/github-actions#custom-automation-with-prompts
 #
 # GitHub Secrets (repository or environment):
@@ -11,6 +11,9 @@
 name: Log Analytics exceptions (Claude)
 
 on:
+  push:
+    branches:
+      - main
   schedule:
     - cron: "0 7 * * 1-5"
   workflow_dispatch:
