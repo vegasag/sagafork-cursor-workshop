@@ -6,27 +6,33 @@ on:
 
 jobs:
   claude:
-    if: |
-      contains(github.event.comment.body, '@claude') &&
-      github.event.issue.pull_request == null
+    if: contains(github.event.comment.body, '@claude') && !github.event.issue.pull_request
     runs-on: ubuntu-latest
     permissions:
       contents: write
       issues: write
       pull-requests: write
+      id-token: write
+      actions: read
     env:
-      ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_FOUNDRY_RESOURCE }}
+      # Foundry project key is not sk-ant-*; use use_foundry (not anthropic_api_key alone).
+      ANTHROPIC_FOUNDRY_API_KEY: ${{ secrets.ANTHROPIC_FOUNDRY_API_KEY }}
+      # Secret must be full host URL: https://YOUR-RESOURCE.services.ai.azure.com (no /anthropic suffix).
+      # If you only store the resource name, switch this key to ANTHROPIC_FOUNDRY_RESOURCE in env instead.
+      ANTHROPIC_FOUNDRY_BASE_URL: ${{ secrets.ANTHROPIC_FOUNDRY_RESOURCE }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: Run Claude Code
         uses: anthropics/claude-code-action@v1
         with:
-          trigger_phrase: "@Claude"
-          anthropic_api_key: ${{ secrets.ANTHROPIC_FOUNDRY_API_KEY }}
+          use_foundry: "true"
+          trigger_phrase: "@claude"
           github_token: ${{ github.token }}
-          claude_args: "--dangerously-skip-permissions"
+          claude_args: "--dangerously-skip-permissions --model claude-sonnet-4-6"
           prompt: |
             Analyze the issue context and implement the requested changes.
             Create a pull request with your implementation that addresses the issue.
