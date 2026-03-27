@@ -21,8 +21,8 @@ jobs:
     env:
       # Foundry: use project API key + resource host only (no /anthropic path — SDK adds it).
       # See https://learn.microsoft.com/azure/foundry/foundry-models/how-to/configure-claude-code
-      ANTHROPIC_FOUNDRY_API_KEY: ${{ secrets.ANTHROPIC_FOUNDRY_API_KEY }}
-      ANTHROPIC_FOUNDRY_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_FOUNDRY_API_KEY }}
+      ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
     permissions:
       contents: write
       pull-requests: write
