@@ -18,6 +18,9 @@ jobs:
       (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
       (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
     runs-on: ubuntu-latest
+    env:
+      # Passed through by anthropics/claude-code-action (Anthropic-compatible Azure endpoint)
+      ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL || 'https://ai-wshp-p.services.ai.azure.com/anthropic/' }}
     permissions:
       contents: write
       pull-requests: write
@@ -34,4 +37,5 @@ jobs:
         id: claude
         uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Foundry key preferred; falls back to direct Anthropic API secret name
+          anthropic_api_key: ${{ secrets.ANTHROPIC_FOUNDRY_API_KEY || secrets.ANTHROPIC_API_KEY }}
