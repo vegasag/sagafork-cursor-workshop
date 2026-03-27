@@ -42,3 +42,7 @@ npm run dev:backend     # Backend only
 - `GET /api/posts/:slug` - Get single post
 - `GET /api/tags` - Get all tags
 - `GET /api/health` - Health check
+
+###
+
+Kjøørr 
