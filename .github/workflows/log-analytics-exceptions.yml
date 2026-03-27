@@ -1,0 +1,74 @@
+# Scheduled + manual: query Azure Log Analytics for recent exceptions, then Claude opens an issue with analysis.
+# Docs: https://code.claude.com/docs/en/github-actions#custom-automation-with-prompts
+#
+# GitHub Secrets (repository or environment):
+#   AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID
+#   ANTHROPIC_FOUNDRY_API_KEY, ANTHROPIC_BASE_URL  (same as claude.yml / your Foundry or proxy setup)
+#
+# Optional repository Variables (defaults match workshop slide if unset):
+#   LOG_ANALYTICS_RESOURCE_GROUP, LOG_ANALYTICS_WORKSPACE_NAME
+
+name: Log Analytics exceptions (Claude)
+
+on:
+  schedule:
+    - cron: "0 7 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+  id-token: write
+  actions: read
+
+jobs:
+  analyze-exceptions:
+    runs-on: ubuntu-latest
+    env:
+      LAW_RG: ${{ vars.LOG_ANALYTICS_RESOURCE_GROUP || 'rg-snkm-shared-p' }}
+      LAW_WS: ${{ vars.LOG_ANALYTICS_WORKSPACE_NAME || 'law-snkm-p' }}
+      ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Azure login (client secret)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+
+      - name: Query AppExceptions (last 24h)
+        run: |
+          set -euo pipefail
+          az monitor log-analytics query \
+            --resource-group "$LAW_RG" \
+            --workspace-name "$LAW_WS" \
+            --analytics-query "AppExceptions | where TimeGenerated > ago(24h) | project TimeGenerated, ProblemId, Type, Message, OuterMessage, AppRoleInstance, AppRoleName | order by TimeGenerated desc | take 75" \
+            -o json > "${{ github.workspace }}/log-analytics-exceptions.json"
+          echo "Rows file size: $(wc -c < ${{ github.workspace }}/log-analytics-exceptions.json) bytes"
+
+      - name: Run Claude Code
+        uses: anthropics/claude-code-action@v1
+        with:
+          github_token: ${{ github.token }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_FOUNDRY_API_KEY }}
+          claude_args: "--dangerously-skip-permissions --model claude-sonnet-4-6"
+          prompt: |
+            You are helping on-call engineers with Azure Monitor / Log Analytics data.
+
+            Read `log-analytics-exceptions.json` at the repository root. It is JSON from a Kusto query (typically an array of rows; empty array means no matching rows).
+
+            If there are no rows (empty array), open **one** GitHub issue titled `Log Analytics — no AppExceptions (24h)` and state that no AppExceptions were returned for workspace law-snkm-p in rg-snkm-shared-p. Mention the query window is the last 24 hours.
+
+            If there are rows:
+            1. Summarize the most important exception patterns and likely user impact.
+            2. For each major pattern, give probable causes and concrete remediation steps (config, code, infra).
+            3. Open **one** GitHub issue with title `Log Analytics exceptions — analysis` and today's UTC date in the title, body in markdown, no raw credentials.
+
+            Do not commit `log-analytics-exceptions.json` to git.
