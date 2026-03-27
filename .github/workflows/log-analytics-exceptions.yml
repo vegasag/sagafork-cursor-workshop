@@ -1,4 +1,4 @@
-# Schedule (weekdays) or manual: query Log Analytics, then Claude opens an issue.
+# Schedule (weekdays) or manual: query Log Analytics → GitHub issue → branch + report file → pull request (links issue).
 # anthropics/claude-code-action does not support the `push` event (use workflow_dispatch to test).
 # Docs: https://code.claude.com/docs/en/github-actions#custom-automation-with-prompts
 #
@@ -16,7 +16,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   issues: write
   pull-requests: write
   id-token: write
@@ -67,11 +67,14 @@ jobs:
 
             Read `log-analytics-exceptions.json` at the repository root. It is JSON from a Kusto query (typically an array of rows; empty array means no matching rows).
 
-            If there are no rows (empty array), open **one** GitHub issue titled `Log Analytics — no exceptions (24h)` and state that the exception summary query returned no rows (AppExceptions or legacy exceptions table). Mention the query window is the last 24 hours.
+            Workflow (do all applicable steps in order):
+            1) **Issue first** — Open exactly one GitHub issue with a clear title and markdown body (no secrets). Use today's UTC date in the title.
+               - If the JSON array is empty: title like `Log Analytics — no exceptions (24h)`; explain no rows for AppExceptions/legacy exceptions, 24h window.
+               - If there are rows: title like `Log Analytics exceptions — analysis (UTC-YYYY-MM-DD)`; body with impact summary, patterns, probable causes, remediation ideas.
 
-            If there are rows:
-            1. Summarize the most important exception patterns and likely user impact.
-            2. For each major pattern, give probable causes and concrete remediation steps (config, code, infra).
-            3. Open **one** GitHub issue with title `Log Analytics exceptions — analysis` and today's UTC date in the title, body in markdown, no raw credentials.
+            2) **Pull request** — After the issue exists, note its number (e.g. `#42`).
+               - Create a new branch (name like `claude/log-analytics-report-YYYYMMDD`).
+               - Add or update a markdown file under `reports/log-analytics/` (e.g. `reports/log-analytics/report-YYYY-MM-DD.md`) containing the same analysis as the issue, plus a line at the top: `Related issue: #N`.
+               - Open a **pull request** to the default branch (`main`) with title like `docs: Log Analytics exception report (YYYY-MM-DD)` and body that **links the issue** using `Relates to #N` (use the real issue number). Describe what the report file contains.
 
-            Do not commit `log-analytics-exceptions.json` to git.
+            Do not commit `log-analytics-exceptions.json` to git. Do not paste API keys or client secrets in the issue or PR.
