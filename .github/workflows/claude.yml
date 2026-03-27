@@ -29,6 +29,11 @@ jobs:
       cancel-in-progress: false
     runs-on: ubuntu-latest
     environment: jira-github-workflow-p
+    env:
+      # Foundry keys are not sk-ant-*; do not use anthropic_api_key without use_foundry.
+      ANTHROPIC_FOUNDRY_API_KEY: ${{ secrets.ANTHROPIC_FOUNDRY_API_KEY }}
+      # Resource host only, e.g. https://YOUR-RESOURCE.services.ai.azure.com (no /anthropic path)
+      ANTHROPIC_FOUNDRY_BASE_URL: ${{ vars.ANTHROPIC_BASE_URL }}
     permissions:
       contents: write
       pull-requests: write
@@ -43,10 +48,8 @@ jobs:
 
       - name: Run Claude Code
         uses: anthropics/claude-code-action@v1
-        env:
-          ANTHROPIC_BASE_URL: ${{ vars.ANTHROPIC_BASE_URL }}
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_FOUNDRY_API_KEY }}
+          use_foundry: "true"
           claude_args: |
             --model claude-sonnet-4-6
             --dangerously-skip-permissions
