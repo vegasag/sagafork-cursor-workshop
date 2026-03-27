@@ -6,9 +6,9 @@ on:
 
 jobs:
   claude:
-    # Use !pull_request (not == null): PR threads set pull_request; plain issues do not.
-    # Comments on a PR will not run this job — only comments on regular issues.
-    if: contains(github.event.comment.body, '@claude') && !github.event.issue.pull_request
+    if: |
+      contains(github.event.comment.body, '@claude') &&
+      github.event.issue.pull_request == null
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -23,7 +23,7 @@ jobs:
       - name: Run Claude Code
         uses: anthropics/claude-code-action@v1
         with:
-          trigger_phrase: "@claude"
+          trigger_phrase: "@Claude"
           anthropic_api_key: ${{ secrets.ANTHROPIC_FOUNDRY_API_KEY }}
           github_token: ${{ github.token }}
           claude_args: "--dangerously-skip-permissions"
