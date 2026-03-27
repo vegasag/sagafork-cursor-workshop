@@ -16,10 +16,9 @@ jobs:
       actions: read
     env:
       # Foundry project key is not sk-ant-*; use use_foundry (not anthropic_api_key alone).
-      ANTHROPIC_FOUNDRY_API_KEY: ${{ secrets.ANTHROPIC_FOUNDRY_API_KEY }}
       # Secret must be full host URL: https://YOUR-RESOURCE.services.ai.azure.com (no /anthropic suffix).
       # If you only store the resource name, switch this key to ANTHROPIC_FOUNDRY_RESOURCE in env instead.
-      ANTHROPIC_FOUNDRY_BASE_URL: ${{ secrets.ANTHROPIC_FOUNDRY_RESOURCE }}
+      ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -31,6 +30,7 @@ jobs:
         with:
           use_foundry: "true"
           trigger_phrase: "@claude"
+          anthropic_api_key: ${{ secrets.ANTHROPIC_FOUNDRY_API_KEY }}
           github_token: ${{ github.token }}
           claude_args: "--dangerously-skip-permissions --model claude-sonnet-4-6"
           prompt: |
