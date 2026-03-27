@@ -6,9 +6,9 @@ on:
 
 jobs:
   claude:
-    if: |
-      contains(github.event.comment.body, '@claude') &&
-      github.event.issue.pull_request == null
+    # Use !pull_request (not == null): PR threads set pull_request; plain issues do not.
+    # Comments on a PR will not run this job — only comments on regular issues.
+    if: contains(github.event.comment.body, '@claude') && !github.event.issue.pull_request
     runs-on: ubuntu-latest
     permissions:
       contents: write
