@@ -1,4 +1,5 @@
-# On push to main, schedule (weekdays), or manual: query Log Analytics, then Claude opens an issue with analysis.
+# Schedule (weekdays) or manual: query Log Analytics, then Claude opens an issue.
+# anthropics/claude-code-action does not support the `push` event (use workflow_dispatch to test).
 # Docs: https://code.claude.com/docs/en/github-actions#custom-automation-with-prompts
 #
 # GitHub Secrets: AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID
@@ -10,9 +11,6 @@
 name: Log Analytics exceptions (Claude)
 
 on:
-  push:
-    branches:
-      - main
   schedule:
     - cron: "0 7 * * 1-5"
   workflow_dispatch:
