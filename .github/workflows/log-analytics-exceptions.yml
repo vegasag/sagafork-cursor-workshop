@@ -2,11 +2,10 @@
 # Docs: https://code.claude.com/docs/en/github-actions#custom-automation-with-prompts
 #
 # GitHub Secrets: AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID
-#   Built into `creds` JSON for azure/login@v2 (that action has no separate client-secret input).
-#   ANTHROPIC_FOUNDRY_API_KEY, ANTHROPIC_BASE_URL  (same as claude.yml / your Foundry or proxy setup)
+#   Passed as one JSON object in `creds` (clientSecret = client secret). azure/login@v2 has no separate client-secret field.
+#   ANTHROPIC_FOUNDRY_API_KEY, ANTHROPIC_BASE_URL
 #
-# Optional repository Variables (defaults match workshop slide if unset):
-#   LOG_ANALYTICS_RESOURCE_GROUP, LOG_ANALYTICS_WORKSPACE_NAME
+# Optional repository Variable: LOG_ANALYTICS_WORKSPACE_ID (default: workshop workspace GUID)
 
 name: Log Analytics exceptions (Claude)
 
@@ -29,8 +28,7 @@ jobs:
   analyze-exceptions:
     runs-on: ubuntu-latest
     env:
-      LAW_RG: ${{ vars.LOG_ANALYTICS_RESOURCE_GROUP || 'rg-snkm-shared-p' }}
-      LAW_WS: ${{ vars.LOG_ANALYTICS_WORKSPACE_NAME || 'law-snkm-p' }}
+      LAW_WORKSPACE: ${{ vars.LOG_ANALYTICS_WORKSPACE_ID || 'a53c2ee0-9900-4756-b9c1-ab1b96a28d87' }}
       ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
     steps:
       - name: Checkout repository
@@ -38,20 +36,18 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Azure login (service principal secret)
+      - name: Azure login (client secret in creds JSON)
         uses: azure/login@v2
         with:
-          auth-type: SERVICE_PRINCIPAL
           creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}'
 
-      - name: Query AppExceptions (last 24h)
+      - name: Query exceptions (last 24h, workspace ID)
         run: |
           set -euo pipefail
           az monitor log-analytics query \
-            --resource-group "$LAW_RG" \
-            --workspace-name "$LAW_WS" \
-            --analytics-query "AppExceptions | where TimeGenerated > ago(24h) | project TimeGenerated, ProblemId, Type, Message, OuterMessage, AppRoleInstance, AppRoleName | order by TimeGenerated desc | take 75" \
-            -o json > "${{ github.workspace }}/log-analytics-exceptions.json"
+            --workspace "$LAW_WORKSPACE" \
+            --analytics-query "exceptions | where timestamp > ago(24h) | summarize Count=count(), LatestOccurrence=max(timestamp), EarliestOccurrence=min(timestamp) by problemId, type, outerMessage | top 2 by Count desc" \
+            --output json > "${{ github.workspace }}/log-analytics-exceptions.json"
           echo "Rows file size: $(wc -c < ${{ github.workspace }}/log-analytics-exceptions.json) bytes"
 
       - name: Run Claude Code
@@ -65,7 +61,7 @@ jobs:
 
             Read `log-analytics-exceptions.json` at the repository root. It is JSON from a Kusto query (typically an array of rows; empty array means no matching rows).
 
-            If there are no rows (empty array), open **one** GitHub issue titled `Log Analytics — no AppExceptions (24h)` and state that no AppExceptions were returned for workspace law-snkm-p in rg-snkm-shared-p. Mention the query window is the last 24 hours.
+            If there are no rows (empty array), open **one** GitHub issue titled `Log Analytics — no exceptions (24h)` and state that the `exceptions` query returned no rows for the configured workspace. Mention the query window is the last 24 hours.
 
             If there are rows:
             1. Summarize the most important exception patterns and likely user impact.
